@@ -7,6 +7,7 @@ export default function Home() {
   const [nome, setNome] = useState('usuária');
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(true);
+  const [showAppImages, setShowAppImages] = useState(false);
 
   useEffect(() => {
     loadUserData();
@@ -79,6 +80,14 @@ export default function Home() {
   const openUrl = (url: string) => {
     window.open(url, '_blank');
   };
+
+  // Array com as imagens do app
+  const appScreenshots = [
+    '/img1.jpg',
+    '/img2.jpg',
+    '/img3.jpg',
+    '/img4.jpg',
+  ];
 
   if (loading) {
     return (
@@ -215,10 +224,10 @@ export default function Home() {
             <p className="text-white font-bold text-base">ACESSO AO CANAL EXCLUSIVO 💪🏽</p>
           </button>
 
-          {/* Botão Baixar App */}
+          {/* Botão Baixar App - MODIFICADO PARA ABRIR MODAL */}
           <button
-            onClick={() => openUrl('https://mixed-dart-8b8.notion.site/Treino-Carol-19d7e407b3b38006a0f9d4dbf0e3322a')}
-            className="w-full bg-[#333] p-4 rounded-[10px] mb-2.5 text-center"
+            onClick={() => setShowAppImages(true)}
+            className="w-full bg-[#333] p-4 rounded-[10px] mb-2.5 text-center hover:bg-[#444] transition-colors"
           >
             <p className="text-white font-bold text-base">📱 Baixe o app aqui</p>
           </button>
@@ -233,6 +242,79 @@ export default function Home() {
 
         </div>
       </div>
+
+      {/* Modal para exibir as imagens do app */}
+      {showAppImages && (
+        <div 
+          className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
+          onClick={() => setShowAppImages(false)}
+        >
+          <div 
+            className="bg-[#222] rounded-[15px] max-w-[90%] max-h-[90vh] overflow-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header do modal */}
+            <div className="sticky top-0 bg-[#222] p-4 border-b border-[#444] flex justify-between items-center z-10">
+              <h2 className="text-white font-bold text-lg">📱 Screenshots do App</h2>
+              <button
+                onClick={() => setShowAppImages(false)}
+                className="text-white bg-[#f55] hover:bg-[#ff6666] px-3 py-1 rounded-lg text-sm font-bold transition-colors"
+              >
+                ✕ Fechar
+              </button>
+            </div>
+
+            {/* Container das imagens */}
+            <div className="p-4 space-y-4">
+              {appScreenshots.map((imageUrl, index) => (
+                <div key={index} className="flex justify-center">
+                  <img
+                    src={imageUrl}
+                    alt={`Screenshot ${index + 1}`}
+                    className="max-w-full rounded-lg shadow-lg"
+                    loading="lazy"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                      const errorDiv = document.createElement('div');
+                      errorDiv.className = 'bg-[#333] text-[#888] p-8 rounded-lg text-center';
+                      errorDiv.textContent = `Erro ao carregar img${index + 1}.jpg`;
+                      target.parentElement?.appendChild(errorDiv);
+                    }}
+                  />
+                </div>
+              ))}
+              
+              {/* Passo a passo para adicionar à tela inicial */}
+              <div className="mt-6 p-4 bg-[#333] rounded-lg">
+                <h3 className="text-white font-bold text-base mb-4 text-center">
+                  Como adicionar o app na tela inicial:
+                </h3>
+                
+                <div className="space-y-3 text-[#ccc]">
+                  <p className="text-sm">
+                    <span className="text-white font-bold">1.</span> Clique no ícone abaixo de "Compartilhar"
+                  </p>
+                  
+                  <p className="text-sm">
+                    <span className="text-white font-bold">2.</span> ROLE a página e selecione a opção "Adicionar a tela de início"
+                  </p>
+                  
+                  <p className="text-sm">
+                    <span className="text-white font-bold">3.</span> Clique em "Adicionar"
+                  </p>
+                </div>
+                
+                <div className="mt-4 pt-4 border-t border-[#444]">
+                  <p className="text-[#888] text-xs text-center">
+                    ✅ Pronto! O app estará na sua tela inicial
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
