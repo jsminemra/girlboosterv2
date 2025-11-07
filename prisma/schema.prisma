@@ -34,6 +34,8 @@ model User {
   generated_workouts generated_workouts[]
   sessions           Session[]
   workoutProgress    WorkoutProgress[]
+  hasAcceptedTerms   Boolean               @default(false)
+  termsAcceptedAt    DateTime?
 
   @@map("users")
 }

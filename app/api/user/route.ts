@@ -1,41 +1,34 @@
-import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-import { cookies } from 'next/headers';
-
-const prisma = new PrismaClient();
+import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export async function GET() {
   try {
     const cookieStore = await cookies();
-    const userId = cookieStore.get('userId');
+    const userId = cookieStore.get("userId")?.value;
 
     if (!userId) {
+      return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+    }
+
+    const { data, error, status } = await supabaseAdmin
+      .from("users")
+      .select("id, email, name, hasCompletedQuiz, termsVersion, termsAcceptedAt")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (error || !data) {
       return NextResponse.json(
-        { error: 'Não autenticado' },
-        { status: 401 }
+        { error: "Usuário não encontrado" },
+        { status: status || 404 }
       );
     }
 
-    const user = await prisma.user.findUnique({
-      where: { id: userId.value }
-    });
-
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Usuário não encontrado' },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json({
-      id: user.id,
-      name: user.name,
-      email: user.email
-    });
+    return NextResponse.json(data);
   } catch (error) {
-    console.error('Erro ao buscar usuário:', error);
+    console.error("Erro ao buscar usuário:", error);
     return NextResponse.json(
-      { error: 'Erro ao buscar usuário' },
+      { error: "Erro ao buscar usuário" },
       { status: 500 }
     );
   }
