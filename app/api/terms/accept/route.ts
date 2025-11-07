@@ -1,25 +1,27 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 const CURRENT_TERMS_VERSION = Number(process.env.CURRENT_TERMS_VERSION ?? 1);
 
-export async function POST(req: Request) {
+export async function POST() {
   try {
-    // tenta pegar do cookie ou do body (pra funcionar localmente)
     const cookieStore = await cookies();
-    let userId = cookieStore.get("userId")?.value;
+    const cookieUserId = cookieStore.get("userId")?.value;
+    let userId = cookieUserId;
 
+    // opcional: também aceitar via body em dev
     if (!userId) {
-      const body = await req.json().catch(() => null);
-      userId = body?.userId;
+      const body = await new Response().json().catch(() => null);
+      userId = (body as any)?.userId;
     }
 
     if (!userId) {
       return NextResponse.json({ error: "Usuária não autenticada" }, { status: 401 });
     }
 
-    const { error } = await supabaseAdmin
+    const supabase = getSupabaseAdmin();
+    const { error } = await supabase
       .from("users")
       .update({
         termsVersion: CURRENT_TERMS_VERSION,
@@ -28,13 +30,13 @@ export async function POST(req: Request) {
       .eq("id", userId);
 
     if (error) {
-      console.error("[terms/accept] erro:", error);
+      console.error("[terms/accept] supabase error:", error);
       return NextResponse.json({ error: "Erro ao salvar aceite" }, { status: 500 });
     }
 
     return NextResponse.json({ ok: true });
   } catch (e) {
-    console.error("[terms/accept] erro interno:", e);
+    console.error("[terms/accept] POST exception:", e);
     return NextResponse.json({ error: "Erro interno" }, { status: 500 });
   }
 }
