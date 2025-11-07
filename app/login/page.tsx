@@ -24,32 +24,30 @@ export default function LoginPage() {
       });
 
       if (res?.ok) {
-        // ✅ Salva para a página de Termos ler (minima mudança)
+        // salva no sessionStorage para a página de termos e outras telas
         sessionStorage.setItem(
           "user",
           JSON.stringify({ name: formData.name, email: formData.email })
         );
 
-        // 🔽 Checar quiz e termos antes de definir a rota (mantido)
+        // 🔽 DECISÃO DE ROTA: consulta direto no banco
         try {
-          const [quizRes, userRes] = await Promise.all([
-            fetch("/api/check-user-quiz", { cache: "no-store" }),
-            fetch("/api/user", { cache: "no-store" }),
-          ]);
+          const r = await fetch("/api/user-status", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: formData.email }),
+            cache: "no-store",
+          });
 
-          const quiz = quizRes.ok ? await quizRes.json() : null;
-          const user = userRes.ok ? await userRes.json() : null;
+          if (!r.ok) {
+            // fallback seguro se der qualquer erro
+            router.push("/home");
+            return;
+          }
 
-          const quizCompleted = !!(quiz?.completed ?? quiz?.hasCompletedQuiz);
-
-          // tenta vários caminhos possíveis p/ compatibilidade
-          const termsAccepted =
-            !!(
-              user?.profile?.terms_accepted ??
-              user?.profile?.hasAcceptedTerms ??
-              user?.user?.hasAcceptedTerms ??
-              user?.hasAcceptedTerms
-            );
+          const s = await r.json(); // { hasCompletedQuiz, hasAcceptedTerms }
+          const quizCompleted = !!s?.hasCompletedQuiz;
+          const termsAccepted = !!s?.hasAcceptedTerms;
 
           if (!quizCompleted) {
             router.push("/quiz");
@@ -59,15 +57,11 @@ export default function LoginPage() {
             router.push("/home");
           }
         } catch {
-          // fallback seguro
           router.push("/home");
         }
       } else {
-        if (res?.error) {
-          setError(res.error);
-        } else {
-          setError("Usuário não encontrado");
-        }
+        if (res?.error) setError(res.error);
+        else setError("Usuário não encontrado");
       }
     } catch (err) {
       console.error("Erro no signIn:", err);
