@@ -24,7 +24,44 @@ export default function LoginPage() {
       });
 
       if (res?.ok) {
-        router.push("/home");
+        // ✅ Salva para a página de Termos ler (minima mudança)
+        sessionStorage.setItem(
+          "user",
+          JSON.stringify({ name: formData.name, email: formData.email })
+        );
+
+        // 🔽 Checar quiz e termos antes de definir a rota (mantido)
+        try {
+          const [quizRes, userRes] = await Promise.all([
+            fetch("/api/check-user-quiz", { cache: "no-store" }),
+            fetch("/api/user", { cache: "no-store" }),
+          ]);
+
+          const quiz = quizRes.ok ? await quizRes.json() : null;
+          const user = userRes.ok ? await userRes.json() : null;
+
+          const quizCompleted = !!(quiz?.completed ?? quiz?.hasCompletedQuiz);
+
+          // tenta vários caminhos possíveis p/ compatibilidade
+          const termsAccepted =
+            !!(
+              user?.profile?.terms_accepted ??
+              user?.profile?.hasAcceptedTerms ??
+              user?.user?.hasAcceptedTerms ??
+              user?.hasAcceptedTerms
+            );
+
+          if (!quizCompleted) {
+            router.push("/quiz");
+          } else if (!termsAccepted) {
+            router.push("/termos-de-uso");
+          } else {
+            router.push("/home");
+          }
+        } catch {
+          // fallback seguro
+          router.push("/home");
+        }
       } else {
         if (res?.error) {
           setError(res.error);

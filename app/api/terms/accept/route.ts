@@ -1,42 +1,36 @@
-import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { NextResponse } from 'next/server';
+import { PrismaClient } from '@prisma/client';
 
-const CURRENT_TERMS_VERSION = Number(process.env.CURRENT_TERMS_VERSION ?? 1);
+// Prisma singleton (evita múltiplas conexões em dev)
+const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
+export const prisma = globalForPrisma.prisma ?? new PrismaClient();
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
-export async function POST() {
+export async function POST(req: Request) {
   try {
-    const cookieStore = await cookies();
-    const cookieUserId = cookieStore.get("userId")?.value;
-    let userId = cookieUserId;
+    const { email } = await req.json().catch(() => ({}));
 
-    // opcional: também aceitar via body em dev
-    if (!userId) {
-      const body = await new Response().json().catch(() => null);
-      userId = (body as any)?.userId;
+    if (!email || typeof email !== 'string') {
+      return NextResponse.json({ error: 'Email obrigatório' }, { status: 400 });
     }
 
-    if (!userId) {
-      return NextResponse.json({ error: "Usuária não autenticada" }, { status: 401 });
+    // Atualiza diretamente no modelo User (conforme seu schema.prisma)
+    const user = await prisma.user.update({
+      where: { email },
+      data: {
+        hasAcceptedTerms: true,
+        termsAcceptedAt: new Date(),
+      },
+      select: { id: true, email: true, hasAcceptedTerms: true, termsAcceptedAt: true },
+    });
+
+    return NextResponse.json({ ok: true, user });
+  } catch (e: any) {
+    // P2025 = registro não encontrado
+    if (e?.code === 'P2025') {
+      return NextResponse.json({ error: 'Usuária não encontrada' }, { status: 404 });
     }
-
-    const supabase = getSupabaseAdmin();
-    const { error } = await supabase
-      .from("users")
-      .update({
-        termsVersion: CURRENT_TERMS_VERSION,
-        termsAcceptedAt: new Date().toISOString(),
-      })
-      .eq("id", userId);
-
-    if (error) {
-      console.error("[terms/accept] supabase error:", error);
-      return NextResponse.json({ error: "Erro ao salvar aceite" }, { status: 500 });
-    }
-
-    return NextResponse.json({ ok: true });
-  } catch (e) {
-    console.error("[terms/accept] POST exception:", e);
-    return NextResponse.json({ error: "Erro interno" }, { status: 500 });
+    console.error('Erro em /api/terms/accept', e);
+    return NextResponse.json({ error: 'Erro ao salvar aceite' }, { status: 500 });
   }
 }
